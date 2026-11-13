@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountType {
+  CLIENT
+  LANDLORD
+  AGENT
+  AGENCY
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum AgencyRole {
+  OWNER
+  ADMINISTRATOR
+  AGENT
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+model User {
+  id            String        @id @db.Uuid // same ID as the Supabase Auth user
+  fullName      String
+  email         String        @unique
+  phone         String?       @unique
+  accountType   AccountType
+  accountStatus AccountStatus @default(ACTIVE)
+  profilePicture String?
+  state         String?
+  city          String?
+  emailVerified Boolean       @default(false)
+  phoneVerified Boolean       @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  agentProfile      AgentProfile?
+  landlordProfile   LandlordProfile?
+  ownedAgencies     Agency[]
+  agencyMemberships AgencyMembership[]
+  auditLogs         AuditLog[]
+
+  @@index([accountType])
+}
+
+model AgentProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique @db.Uuid
+  biography       String?
+  yearsExperience Int?
+  specialisations String[]
+  operatingStates String[]
+  operatingCities String[]
+  ratingAverage   Float    @default(0)
+  totalReviews    Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model LandlordProfile {
+  id                 String  @id @default(cuid())
+  userId             String  @unique @db.Uuid
+  residentialAddress String?
+  contactPreference  String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Agency {
+  id                 String   @id @default(cuid())
+  name               String
+  companyEmail       String
+  companyPhone       String?
+  address            String?
+  state              String?
+  city               String?
+  registrationNumber String?
+  logo               String?
+  description        String?
+  website            String?
+  ownerUserId        String   @db.Uuid
+  createdAt          DateTime @default(now())
+
+  owner       User               @relation(fields: [ownerUserId], references: [id])
+  memberships AgencyMembership[]
+}
+
+model AgencyMembership {
+  id        String           @id @default(cuid())
+  agencyId  String
+  userId    String           @db.Uuid
+  role      AgencyRole
+  status    MembershipStatus @default(INVITED)
+  invitedAt DateTime         @default(now())
+  joinedAt  DateTime?
+
+  agency Agency @relation(fields: [agencyId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([agencyId, userId])
+}
+
+// Master switches: trust_enabled, premium_enabled, credits_enabled, boosts_enabled
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean  @default(false)
+  description String?
+  updatedById String?  @db.Uuid
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  actorId        String?  @db.Uuid
+  action         String
+  entityType     String
+  entityId       String
+  previousValues Json?
+  newValues      Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+}
