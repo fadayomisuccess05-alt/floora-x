@@ -40,7 +40,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${sora.variable} ${dmSans.variable}`}>
-      <body className="flex min-h-dvh flex-col antialiased">
+      <body
+        suppressHydrationWarning
+        className="flex min-h-dvh flex-col antialiased"
+      >
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
