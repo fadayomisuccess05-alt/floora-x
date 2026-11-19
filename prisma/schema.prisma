@@ -54,7 +54,8 @@ model User {
   landlordProfile   LandlordProfile?
   ownedAgencies     Agency[]
   agencyMemberships AgencyMembership[]
-  auditLogs         AuditLog[]
+  auditLogs         AuditLog[]  
+  verifications     Verification[]
 
   @@index([accountType])
 }
@@ -140,4 +141,62 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([actorId])
+}
+
+enum VerificationType {
+  NIN
+  ADDRESS
+  CAC
+}
+
+enum VerificationMethod {
+  MANUAL
+  PROVIDER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+model Verification {
+  id              String             @id @default(cuid())
+  userId          String             @db.Uuid
+  type            VerificationType
+  method          VerificationMethod @default(MANUAL)
+  status          VerificationStatus @default(PENDING)
+  maskedValue     String?            // e.g. "*******1234"
+    submittedAddress String?
+  valueHash       String?            // keyed hash of the NIN, to block one NIN on many accounts
+  challengeCode   String?            // the random code the person says in the video
+  rejectionReason String?
+  reviewedById    String?            @db.Uuid
+  reviewedAt      DateTime?
+  verifiedAt      DateTime?
+  expiresAt       DateTime?          // address badge: 12 months
+  createdAt       DateTime           @default(now())
+
+  user     User                   @relation(fields: [userId], references: [id])
+  evidence VerificationEvidence[]
+
+  @@index([userId, type])
+  @@index([status, type])
+  @@index([valueHash])
+}
+
+model VerificationEvidence {
+  id             String   @id @default(cuid())
+  verificationId String
+  kind           String   // NIN_CARD_FRONT | NIN_CARD_BACK | NIN_VIDEO | UTILITY_BILL | CAC_CERT
+  storageKey     String   // path inside the private bucket
+  mimeType       String?
+  sizeBytes      Int?
+  deleteAfter    DateTime?
+  createdAt      DateTime @default(now())
+
+  verification Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@index([verificationId])
 }

@@ -47,6 +47,7 @@ export type NavItem = { label: string; href?: string };
 export function getNav(role: Role): NavItem[] {
   return [
     { label: "Overview", href: `/dashboard/${roleSlug[role]}` },
+    ...(role !== "ADMIN" ? [{ label: "Verification", href: "/dashboard/verification" }] : []),
     ...items[role].map((label) => ({ label })),
   ];
 }

@@ -13,6 +13,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.user) {
+    console.error("Login error:", error?.message);
     return { error: "Wrong email or password, or your email isn't confirmed yet." };
   }
 
@@ -29,3 +30,4 @@ export async function logout() {
   await supabase.auth.signOut();
   redirect("/");
 }
+
