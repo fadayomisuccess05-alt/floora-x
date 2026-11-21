@@ -56,6 +56,7 @@ model User {
   agencyMemberships AgencyMembership[]
   auditLogs         AuditLog[]  
   verifications     Verification[]
+    properties        Property[]
 
   @@index([accountType])
 }
@@ -100,6 +101,7 @@ model Agency {
 
   owner       User               @relation(fields: [ownerUserId], references: [id])
   memberships AgencyMembership[]
+    properties  Property[]
 }
 
 model AgencyMembership {
@@ -199,4 +201,143 @@ model VerificationEvidence {
   verification Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
 
   @@index([verificationId])
+}
+
+
+enum CategoryGroup {
+  RESIDENTIAL
+  COMMERCIAL
+  LAND
+}
+
+enum TransactionType {
+  FOR_SALE
+  FOR_RENT
+  SHORT_TERM
+  LEASE
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  SUSPENDED
+  RESERVED
+  RENTED
+  SOLD
+  EXPIRED
+  ARCHIVED
+}
+
+enum Furnishing {
+  UNFURNISHED
+  SEMI_FURNISHED
+  FURNISHED
+}
+
+enum PricePeriod {
+  YEAR
+  MONTH
+  DAY
+  ONE_OFF
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  FLOOR_PLAN
+}
+
+model PropertyCategory {
+  id            String        @id @default(cuid())
+  slug          String        @unique
+  name          String
+  categoryGroup CategoryGroup
+  hasRooms      Boolean       @default(true) // false for land: hides bedrooms, bathrooms, toilets
+  active        Boolean       @default(true)
+  sortOrder     Int           @default(0)
+
+  properties Property[]
+}
+
+model Amenity {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  name      String
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  properties Property[]
+}
+
+model Property {
+  id              String          @id @default(cuid())
+  title           String
+  description     String
+  categoryId      String
+  transactionType TransactionType
+  listingStatus   ListingStatus   @default(DRAFT)
+
+  postedById String  @db.Uuid
+  agencyId   String?
+
+  state            String
+  lga              String?
+  city             String
+  neighbourhood    String?
+  streetAddress    String?
+  latitude         Float?
+  longitude        Float?
+  hideExactAddress Boolean @default(true)
+
+  bedrooms      Int?
+  bathrooms     Int?
+  toilets       Int?
+  parkingSpaces Int?
+  sizeSqm       Float?
+  furnishing    Furnishing?
+  yearBuilt     Int?
+
+  priceNaira        BigInt
+  pricePeriod       PricePeriod
+  negotiable        Boolean     @default(false)
+  additionalCharges Json?       // e.g. [{ "label": "Caution fee", "amount": 200000 }]
+
+  publishedAt     DateTime?
+  expiresAt       DateTime?
+  lastConfirmedAt DateTime?
+  reviewedById    String?   @db.Uuid
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category PropertyCategory @relation(fields: [categoryId], references: [id])
+  postedBy User             @relation(fields: [postedById], references: [id])
+  agency   Agency?          @relation(fields: [agencyId], references: [id])
+  amenities Amenity[]
+  media     PropertyMedia[]
+
+  @@index([listingStatus, transactionType, state, city])
+  @@index([postedById])
+  @@index([categoryId])
+  @@index([priceNaira])
+}
+
+model PropertyMedia {
+  id         String    @id @default(cuid())
+  propertyId String
+  kind       MediaKind @default(IMAGE)
+  storageKey String
+  sortOrder  Int       @default(0)
+  isCover    Boolean   @default(false)
+  mimeType   String?
+  sizeBytes  Int?
+  createdAt  DateTime  @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, sortOrder])
 }
