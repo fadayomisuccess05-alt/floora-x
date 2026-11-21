@@ -44,10 +44,14 @@ const items: Record<Role, string[]> = {
 
 export type NavItem = { label: string; href?: string };
 
+const itemLinks: Partial<Record<Role, Record<string, string>>> = {
+  ADMIN: { Verification: "/dashboard/admin/verification" },
+};
+
 export function getNav(role: Role): NavItem[] {
   return [
     { label: "Overview", href: `/dashboard/${roleSlug[role]}` },
     ...(role !== "ADMIN" ? [{ label: "Verification", href: "/dashboard/verification" }] : []),
-    ...items[role].map((label) => ({ label })),
+    ...items[role].map((label) => ({ label, href: itemLinks[role]?.[label] })),
   ];
 }
