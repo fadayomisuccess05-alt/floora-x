@@ -46,6 +46,9 @@ export type NavItem = { label: string; href?: string };
 
 const itemLinks: Partial<Record<Role, Record<string, string>>> = {
   ADMIN: { Verification: "/dashboard/admin/verification" },
+  LANDLORD: { "My Properties": "/dashboard/properties", "Add Property": "/dashboard/properties/new" },
+  AGENT: { "My Listings": "/dashboard/properties", "Add Property": "/dashboard/properties/new" },
+  AGENCY: { Properties: "/dashboard/properties", "Add Property": "/dashboard/properties/new" },
 };
 
 export function getNav(role: Role): NavItem[] {

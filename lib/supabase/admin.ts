@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 
 export const VERIFICATION_BUCKET = "verification-private";
 
+export const PROPERTY_BUCKET = "property-media";
+
 // Uses the SECRET key. Only import this from server code.
 export function createAdminClient() {
   return createClient(
