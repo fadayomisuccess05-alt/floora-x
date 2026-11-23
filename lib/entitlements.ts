@@ -19,3 +19,9 @@ export async function getLimits(_userId: string): Promise<Limits> {
   // Subscriptions arrive in a later stage. Until then everyone is on the free plan.
   return FREE_PLAN;
 }
+
+
+// Shows only the first N photos when the owner's plan has a photo limit
+export function visiblePhotos<T>(items: T[], limit: number): T[] {
+  return Number.isFinite(limit) ? items.slice(0, limit) : items;
+}
