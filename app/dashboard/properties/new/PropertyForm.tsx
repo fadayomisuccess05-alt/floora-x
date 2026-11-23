@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createListing, getPropertyUploadUrls, finalizeListing } from "../actions";
+import { getEditUploadUrls, saveListing } from "../edit-actions";
 import { propertySchema, TRANSACTION_OPTIONS } from "@/lib/properties/schema";
 import { NIGERIAN_STATES } from "@/lib/nigeria";
 import { compressImage } from "@/lib/verification/image";
@@ -10,7 +11,50 @@ import { createClient } from "@/lib/supabase/client";
 
 type Category = { id: string; name: string; group: string; hasRooms: boolean };
 type Amenity = { id: string; name: string };
-type Props = { categories: Category[]; amenities: Amenity[]; maxPhotos: number };
+
+export type FormInitial = {
+  title: string;
+  description: string;
+  categoryId: string;
+  transactionType: string;
+  state: string;
+  lga: string;
+  city: string;
+  neighbourhood: string;
+  streetAddress: string;
+  hideExactAddress: boolean;
+  bedrooms: string;
+  bathrooms: string;
+  toilets: string;
+  parkingSpaces: string;
+  sizeSqm: string;
+  furnishing: string;
+  yearBuilt: string;
+  price: string;
+  pricePeriod: string;
+  negotiable: boolean;
+};
+
+const EMPTY: FormInitial = {
+  title: "", description: "", categoryId: "", transactionType: "FOR_RENT",
+  state: "", lga: "", city: "", neighbourhood: "", streetAddress: "", hideExactAddress: true,
+  bedrooms: "", bathrooms: "", toilets: "", parkingSpaces: "", sizeSqm: "", furnishing: "", yearBuilt: "",
+  price: "", pricePeriod: "YEAR", negotiable: false,
+};
+
+type Props = {
+  categories: Category[];
+  amenities: Amenity[];
+  maxPhotos: number;
+  mode?: "create" | "edit";
+  propertyId?: string;
+  initial?: FormInitial;
+  initialCharges?: { label: string; amount: string }[];
+  initialAmenityIds?: string[];
+  existingPhotos?: { id: string; url: string }[];
+};
+
+type Photo = { key: string; url: string; existingId?: string; file?: File };
 
 const input =
   "w-full rounded-xl border border-navy/15 bg-white px-4 py-3 text-navy placeholder:text-navy/40 focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30";
@@ -50,23 +94,30 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function PropertyForm({ categories, amenities, maxPhotos }: Props) {
+export function PropertyForm({
+  categories,
+  amenities,
+  maxPhotos,
+  mode = "create",
+  propertyId,
+  initial,
+  initialCharges,
+  initialAmenityIds,
+  existingPhotos,
+}: Props) {
   const router = useRouter();
-  const [f, setF] = useState({
-    title: "", description: "", categoryId: "", transactionType: "FOR_RENT",
-    state: "", lga: "", city: "", neighbourhood: "", streetAddress: "", hideExactAddress: true,
-    bedrooms: "", bathrooms: "", toilets: "", parkingSpaces: "", sizeSqm: "", furnishing: "", yearBuilt: "",
-    price: "", pricePeriod: "YEAR", negotiable: false,
-  });
-  const [charges, setCharges] = useState<{ label: string; amount: string }[]>([]);
-  const [amenityIds, setAmenityIds] = useState<string[]>([]);
-  const [photos, setPhotos] = useState<{ file: File; url: string }[]>([]);
+  const [f, setF] = useState<FormInitial>(initial ?? EMPTY);
+  const [charges, setCharges] = useState<{ label: string; amount: string }[]>(initialCharges ?? []);
+  const [amenityIds, setAmenityIds] = useState<string[]>(initialAmenityIds ?? []);
+  const [photos, setPhotos] = useState<Photo[]>(
+    (existingPhotos ?? []).map((e) => ({ key: e.id, url: e.url, existingId: e.id }))
+  );
   const [draftId, setDraftId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((p) => ({ ...p, [k]: v }));
+  const set = <K extends keyof FormInitial>(k: K, v: FormInitial[K]) => setF((p) => ({ ...p, [k]: v }));
   const category = categories.find((c) => c.id === f.categoryId);
   const showRooms = category?.hasRooms ?? true;
   const isSale = f.transactionType === "FOR_SALE";
@@ -84,13 +135,17 @@ export function PropertyForm({ categories, amenities, maxPhotos }: Props) {
     if (!list) return;
     const room = Math.max(0, maxPhotos - photos.length);
     const picked = Array.from(list).filter((x) => x.type.startsWith("image/"));
-    const next = picked.slice(0, room).map((file) => ({ file, url: URL.createObjectURL(file) }));
+    const next: Photo[] = picked.slice(0, room).map((file) => ({
+      key: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      url: URL.createObjectURL(file),
+      file,
+    }));
     setPhotos((p) => [...p, ...next]);
-    setError(picked.length > room ? `You can add up to ${maxPhotos} photos.` : "");
+    setError(picked.length > room ? `You can have up to ${maxPhotos} photos.` : "");
   }
   function removePhoto(i: number) {
     setPhotos((p) => {
-      URL.revokeObjectURL(p[i].url);
+      if (p[i].file) URL.revokeObjectURL(p[i].url);
       return p.filter((_, k) => k !== i);
     });
   }
@@ -142,6 +197,47 @@ export function PropertyForm({ categories, amenities, maxPhotos }: Props) {
 
     setBusy(true);
     try {
+      const supabase = createClient();
+
+      // ---------- Editing an existing listing ----------
+      if (mode === "edit" && propertyId) {
+        const fresh = photos.filter((p) => p.file);
+        const paths = new Map<string, string>();
+
+        if (fresh.length > 0) {
+          setProgress("Preparing photos...");
+          const prepared: File[] = [];
+          for (const p of fresh) prepared.push(await compressImage(p.file!));
+
+          const urls = await getEditUploadUrls(
+            propertyId,
+            prepared.map((x) => ({ mime: x.type, size: x.size }))
+          );
+          if (!urls.ok) throw new Error(urls.error);
+
+          for (let i = 0; i < urls.items.length; i++) {
+            setProgress(`Uploading photo ${i + 1} of ${urls.items.length}...`);
+            const { error: upErr } = await supabase.storage
+              .from(urls.bucket)
+              .uploadToSignedUrl(urls.items[i].path, urls.items[i].token, prepared[i], {
+                contentType: prepared[i].type,
+              });
+            if (upErr) throw new Error("A photo failed to upload. Check your connection and try again.");
+            paths.set(fresh[i].key, urls.items[i].path);
+          }
+        }
+
+        setProgress("Saving changes...");
+        const order = photos.map((p) =>
+          p.existingId ? { existingId: p.existingId } : { path: paths.get(p.key)! }
+        );
+        const saved = await saveListing(propertyId, parsed.data, order);
+        if (!saved.ok) throw new Error(saved.error);
+        router.push(`/dashboard/properties?updated=${saved.status === "PUBLISHED" ? "live" : "review"}`);
+        return;
+      }
+
+      // ---------- Adding a new listing ----------
       setProgress("Saving the details...");
       const created = await createListing(parsed.data, draftId ?? undefined);
       if (!created.ok) throw new Error(created.error);
@@ -149,7 +245,7 @@ export function PropertyForm({ categories, amenities, maxPhotos }: Props) {
 
       setProgress("Preparing photos...");
       const prepared: File[] = [];
-      for (const p of photos) prepared.push(await compressImage(p.file));
+      for (const p of photos) prepared.push(await compressImage(p.file!));
 
       const urls = await getPropertyUploadUrls(
         created.propertyId,
@@ -157,7 +253,6 @@ export function PropertyForm({ categories, amenities, maxPhotos }: Props) {
       );
       if (!urls.ok) throw new Error(urls.error);
 
-      const supabase = createClient();
       for (let i = 0; i < urls.items.length; i++) {
         setProgress(`Uploading photo ${i + 1} of ${urls.items.length}...`);
         const { error: upErr } = await supabase.storage
@@ -351,7 +446,7 @@ export function PropertyForm({ categories, amenities, maxPhotos }: Props) {
         )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {photos.map((p, i) => (
-            <div key={p.url} className="relative overflow-hidden rounded-xl border border-navy/10 bg-white">
+            <div key={p.key} className="relative overflow-hidden rounded-xl border border-navy/10 bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt="" className="aspect-[4/3] w-full object-cover" />
               {i === 0 && (
@@ -372,7 +467,7 @@ export function PropertyForm({ categories, amenities, maxPhotos }: Props) {
 
       <button type="submit" disabled={busy}
         className="w-full rounded-full bg-amber px-6 py-3.5 font-bold text-navy transition hover:scale-[1.01] disabled:opacity-60">
-        {busy ? "Please wait..." : "Submit for review"}
+        {busy ? "Please wait..." : mode === "edit" ? "Save changes" : "Submit for review"}
       </button>
     </form>
   );

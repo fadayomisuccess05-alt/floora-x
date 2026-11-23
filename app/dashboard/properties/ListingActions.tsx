@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { manageListing } from "./manage-actions";
@@ -28,6 +29,7 @@ export function ListingActions({ id, status, expired, transactionType, everPubli
   }
 
   const doneWord = transactionType === "FOR_SALE" ? "sold" : "rented";
+  const editable = ["DRAFT", "PENDING_REVIEW", "PUBLISHED", "REJECTED"].includes(status);
   const buttons: { label: string; action: string; confirm?: string; danger?: boolean }[] = [];
 
   if (status === "PUBLISHED" && !expired) {
@@ -49,10 +51,18 @@ export function ListingActions({ id, status, expired, transactionType, everPubli
     buttons.push({ label: "Delete", action: "DELETE", confirm: "Delete this listing and its photos permanently?", danger: true });
   }
 
-  if (buttons.length === 0) return null;
+  if (buttons.length === 0 && !editable) return null;
 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
+      {editable && (
+        <Link
+          href={`/dashboard/properties/${id}/edit`}
+          className="rounded-full border border-teal px-4 py-1.5 text-xs font-semibold text-teal hover:bg-teal/10"
+        >
+          {status === "REJECTED" ? "Edit and resubmit" : "Edit"}
+        </Link>
+      )}
       {buttons.map((b) => (
         <button
           key={b.action + b.label}
