@@ -56,7 +56,8 @@ model User {
   agencyMemberships AgencyMembership[]
   auditLogs         AuditLog[]  
   verifications     Verification[]
-    properties        Property[]
+  properties        Property[]
+  favorites         Favorite[]
 
   @@index([accountType])
 }
@@ -319,6 +320,7 @@ model Property {
   agency   Agency?          @relation(fields: [agencyId], references: [id])
   amenities Amenity[]
   media     PropertyMedia[]
+  favorites Favorite[]
 
   @@index([listingStatus, transactionType, state, city])
   @@index([postedById])
@@ -340,4 +342,17 @@ model PropertyMedia {
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@index([propertyId, sortOrder])
+}
+
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String   @db.Uuid
+  propertyId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+  @@index([userId, createdAt])
 }

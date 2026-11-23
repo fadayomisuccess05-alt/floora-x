@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PropertyCard } from "@/components/PropertyCard";
+import { PropertyGrid } from "@/components/PropertyGrid";
 import { searchProperties } from "@/lib/properties/queries";
 
 const divisions = [
@@ -23,9 +23,18 @@ const divisions = [
 
 export default async function Home() {
   const latest = await searchProperties(
-    { q: "", category: "", minPrice: null, maxPrice: null, bedrooms: null, amenities: [], sort: "newest", page: 1 },
+    {
+      q: "",
+      category: "",
+      minPrice: null,
+      maxPrice: null,
+      bedrooms: null,
+      amenities: [],
+      sort: "newest",
+      page: 1,
+    },
     {},
-    6
+    6,
   );
 
   return (
@@ -39,18 +48,27 @@ export default async function Home() {
             Find the place. Meet the people. Close with confidence.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-white/75">
-            Floora-X connects property seekers, landlords, agents and agencies in one trusted marketplace.
+            Floora-X connects property seekers, landlords, agents and agencies
+            in one trusted marketplace.
           </p>
 
           <form
             action="/search"
             className="mt-10 grid gap-3 rounded-2xl bg-white p-3 shadow-2xl md:grid-cols-[1fr_1fr_1.4fr_auto]"
           >
-            <select name="for" aria-label="Buy or rent" className="rounded-xl bg-mist px-4 py-3 text-navy">
+            <select
+              name="for"
+              aria-label="Buy or rent"
+              className="rounded-xl bg-mist px-4 py-3 text-navy"
+            >
               <option value="buy">Buy</option>
               <option value="rent">Rent</option>
             </select>
-            <select name="type" aria-label="Property type" className="rounded-xl bg-mist px-4 py-3 text-navy">
+            <select
+              name="type"
+              aria-label="Property type"
+              className="rounded-xl bg-mist px-4 py-3 text-navy"
+            >
               <option value="">Any type</option>
               <option value="apartment">Apartment</option>
               <option value="house">House</option>
@@ -77,26 +95,34 @@ export default async function Home() {
         <section className="mx-auto max-w-6xl px-4 pt-20">
           <div className="flex items-end justify-between gap-4">
             <h2 className="text-3xl font-bold md:text-4xl">Recently added</h2>
-            <Link href="/buy" className="text-sm font-semibold text-teal hover:underline">
+            <Link
+              href="/buy"
+              className="text-sm font-semibold text-teal hover:underline"
+            >
               View all &rarr;
             </Link>
           </div>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {latest.items.map((p) => (
-              <PropertyCard key={p.id} p={p} />
-            ))}
+          <div className="mt-8">
+            <PropertyGrid items={latest.items} />
           </div>
         </section>
       )}
 
       <section className="mx-auto max-w-6xl px-4 py-20">
-        <h2 className="text-3xl font-bold md:text-4xl">One platform, four ways to work</h2>
+        <h2 className="text-3xl font-bold md:text-4xl">
+          One platform, four ways to work
+        </h2>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {divisions.map((d) => (
-            <div key={d.title} className="rounded-2xl border border-navy/10 bg-white p-6">
+            <div
+              key={d.title}
+              className="rounded-2xl border border-navy/10 bg-white p-6"
+            >
               <div className="mb-4 h-1.5 w-10 rounded-full bg-teal" />
               <h3 className="text-lg font-bold">{d.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink/80">{d.text}</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink/80">
+                {d.text}
+              </p>
             </div>
           ))}
         </div>
@@ -105,9 +131,12 @@ export default async function Home() {
       <section className="px-4 pb-24">
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 rounded-3xl bg-navy-2 p-10 text-white md:flex-row md:items-center">
           <div>
-            <h2 className="text-2xl font-bold !text-white md:text-3xl">Own or manage property?</h2>
+            <h2 className="text-2xl font-bold !text-white md:text-3xl">
+              Own or manage property?
+            </h2>
             <p className="mt-2 max-w-md text-white/75">
-              List for free as a landlord, or grow your business as an agent or agency.
+              List for free as a landlord, or grow your business as an agent or
+              agency.
             </p>
           </div>
           <Link

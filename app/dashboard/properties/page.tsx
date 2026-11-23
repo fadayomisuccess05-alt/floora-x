@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { publicMediaUrl } from "@/lib/properties/media";
+import { ListingActions } from "./ListingActions";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: "Draft", cls: "bg-navy/10 text-navy" },
@@ -13,9 +14,11 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   RENTED: { label: "Rented", cls: "bg-navy/10 text-navy" },
   SOLD: { label: "Sold", cls: "bg-navy/10 text-navy" },
   EXPIRED: { label: "Expired", cls: "bg-navy/10 text-navy" },
-  ARCHIVED: { label: "Archived", cls: "bg-navy/10 text-navy" },
+  ARCHIVED: { label: "Taken down", cls: "bg-navy/10 text-navy" },
 };
 const PERIOD: Record<string, string> = { YEAR: " / year", MONTH: " / month", DAY: " / day", ONE_OFF: "" };
+
+const dateText = (d: Date) => d.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
 
 export default async function MyProperties({
   searchParams,
@@ -30,6 +33,7 @@ export default async function MyProperties({
     orderBy: { createdAt: "desc" },
     include: { category: { select: { name: true } }, media: { where: { isCover: true }, take: 1 } },
   });
+  const now = new Date();
 
   return (
     <div className="space-y-6">
@@ -50,7 +54,8 @@ export default async function MyProperties({
 
       <div className="space-y-3">
         {items.map((p) => {
-          const s = STATUS[p.listingStatus];
+          const expired = p.listingStatus === "PUBLISHED" && !!p.expiresAt && p.expiresAt < now;
+          const s = expired ? STATUS.EXPIRED : STATUS[p.listingStatus];
           const cover = p.media[0];
           return (
             <div key={p.id} className="flex gap-4 rounded-2xl border border-navy/10 bg-white p-4">
@@ -71,9 +76,27 @@ export default async function MyProperties({
                 <p className="mt-1 text-sm font-semibold text-navy">
                   ₦{Number(p.priceNaira).toLocaleString("en-NG")}{PERIOD[p.pricePeriod]}
                 </p>
+                {p.listingStatus === "PUBLISHED" && p.expiresAt && (
+                  <p className="mt-1 text-xs text-ink/60">
+                    {expired ? "Expired on " : "Live until "}
+                    {dateText(p.expiresAt)}
+                  </p>
+                )}
                 {p.listingStatus === "REJECTED" && p.rejectionReason && (
                   <p className="mt-1 text-sm text-red-700">Reason: {p.rejectionReason}</p>
                 )}
+                {p.listingStatus === "PUBLISHED" && !expired && (
+                  <Link href={`/property/${p.id}`} className="mt-1 inline-block text-xs font-semibold text-teal hover:underline">
+                    View public page
+                  </Link>
+                )}
+                <ListingActions
+                  id={p.id}
+                  status={p.listingStatus}
+                  expired={expired}
+                  transactionType={p.transactionType}
+                  everPublished={!!p.publishedAt}
+                />
               </div>
             </div>
           );
