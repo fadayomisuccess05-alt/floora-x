@@ -10,6 +10,7 @@ import { PropertyGrid } from "@/components/PropertyGrid";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { getCurrentUser } from "@/lib/auth/session";
 import { VerifiedBadges } from "@/components/VerifiedBadges";
+import { Gallery } from "@/components/Gallery";
 
 const FURNISHING: Record<string, string> = {
   UNFURNISHED: "Unfurnished",
@@ -134,25 +135,13 @@ export default async function PropertyPage({
 
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {photos.map((m, i) => (
-              <a
-                key={m.id}
-                href={publicMediaUrl(m.storageKey)}
-                target="_blank"
-                rel="noreferrer"
-                className={i === 0 ? "col-span-2 sm:col-span-4" : ""}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={publicMediaUrl(m.storageKey)}
-                  alt={`${p.title} photo ${i + 1}`}
-                  loading={i === 0 ? "eager" : "lazy"}
-                  className={`w-full rounded-xl object-cover ${i === 0 ? "aspect-[16/10]" : "aspect-[4/3]"}`}
-                />
-              </a>
-            ))}
-          </div>
+          <Gallery
+            photos={photos.map((m) => ({
+              id: m.id,
+              url: publicMediaUrl(m.storageKey),
+            }))}
+            title={p.title}
+          />
 
           <div>
             <p className="text-sm font-semibold text-teal">
