@@ -11,6 +11,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { getCurrentUser } from "@/lib/auth/session";
 import { VerifiedBadges } from "@/components/VerifiedBadges";
 import { Gallery } from "@/components/Gallery";
+import { EnquiryBox } from "@/components/EnquiryBox";
 
 const FURNISHING: Record<string, string> = {
   UNFURNISHED: "Unfurnished",
@@ -86,6 +87,23 @@ export default async function PropertyPage({
         where: { userId_propertyId: { userId: viewer.id, propertyId: p.id } },
       })
     : null;
+  const existingConversation = viewer
+    ? await db.conversation.findUnique({
+        where: {
+          propertyId_clientId: { propertyId: p.id, clientId: viewer.id },
+        },
+        select: { id: true },
+      })
+    : null;
+  const enquiryMode = !viewer
+    ? "guest"
+    : viewer.id === p.postedById
+      ? "own"
+      : viewer.accountType === "ADMIN"
+        ? "admin"
+        : existingConversation
+          ? "existing"
+          : "ready";
   const similar = (
     await searchProperties(
       {
@@ -234,10 +252,12 @@ export default async function PropertyPage({
               idChecked={badges?.idChecked ?? false}
               addressVerified={badges?.addressVerified ?? false}
             />
-            <div className="rounded-xl bg-mist p-4 text-sm text-ink/75">
-              Enquiries, inspection requests and offers are coming in the next
-              update.
-            </div>
+            <EnquiryBox
+              propertyId={p.id}
+              title={p.title}
+              mode={enquiryMode}
+              conversationId={existingConversation?.id}
+            />
           </div>
         </aside>
       </div>

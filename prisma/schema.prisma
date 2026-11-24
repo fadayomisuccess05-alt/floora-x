@@ -58,6 +58,9 @@ model User {
   verifications     Verification[]
   properties        Property[]
   favorites         Favorite[]
+  conversationsAsClient    Conversation[] @relation("ConversationClient")
+  conversationsAsRecipient Conversation[] @relation("ConversationRecipient")
+  messages                 Message[]
 
   @@index([accountType])
 }
@@ -321,6 +324,7 @@ model Property {
   amenities Amenity[]
   media     PropertyMedia[]
   favorites Favorite[]
+  conversations Conversation[]
 
   @@index([listingStatus, transactionType, state, city])
   @@index([postedById])
@@ -355,4 +359,46 @@ model Favorite {
 
   @@unique([userId, propertyId])
   @@index([userId, createdAt])
+}
+
+enum EnquiryStatus {
+  NEW
+  READ
+  RESPONDED
+  CLOSED
+}
+
+model Conversation {
+  id              String        @id @default(cuid())
+  propertyId      String
+  clientId        String        @db.Uuid
+  recipientId     String        @db.Uuid
+  status          EnquiryStatus @default(NEW)
+  clientUnread    Boolean       @default(false)
+  recipientUnread Boolean       @default(true)
+  lastMessageAt   DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+
+  property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  client    User      @relation("ConversationClient", fields: [clientId], references: [id])
+  recipient User      @relation("ConversationRecipient", fields: [recipientId], references: [id])
+  messages  Message[]
+
+  @@unique([propertyId, clientId])
+  @@index([clientId, lastMessageAt])
+  @@index([recipientId, lastMessageAt])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String   @db.Uuid
+  body           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
 }

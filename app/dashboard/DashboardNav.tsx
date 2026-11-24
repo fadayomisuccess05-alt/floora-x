@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { logout } from "@/app/login/actions";
 
-type Item = { label: string; href?: string };
+type Item = { label: string; href?: string; badge?: number };
 
 // The most specific link that matches the current page is the active one
 function activeHref(items: Item[], pathname: string) {
@@ -68,6 +68,9 @@ export function DashboardNav({ items, name, role }: { items: Item[]; name: strin
               }`}
             >
               {item.label}
+              {item.badge ? (
+                <span className="ml-2 rounded-full bg-amber px-2 py-0.5 text-xs font-bold text-navy">{item.badge}</span>
+              ) : null}
             </Link>
           </li>
         );

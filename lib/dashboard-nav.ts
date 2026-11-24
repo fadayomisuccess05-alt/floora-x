@@ -100,28 +100,32 @@ const items: Record<Role, string[]> = {
   ],
 };
 
-export type NavItem = { label: string; href?: string };
+export type NavItem = { label: string; href?: string; badge?: number };
 
 const itemLinks: Partial<Record<Role, Record<string, string>>> = {
   ADMIN: {
     Verification: "/dashboard/admin/verification",
     "Listing Approvals": "/dashboard/admin/listings",
   },
+  CLIENT: {
+    "Browse Properties": "/buy",
+    "Saved Properties": "/dashboard/saved",
+    Messages: "/dashboard/messages",
+  },
   LANDLORD: {
     "My Properties": "/dashboard/properties",
     "Add Property": "/dashboard/properties/new",
+    Messages: "/dashboard/messages",
   },
   AGENT: {
     "My Listings": "/dashboard/properties",
     "Add Property": "/dashboard/properties/new",
+    Messages: "/dashboard/messages",
   },
   AGENCY: {
     Properties: "/dashboard/properties",
     "Add Property": "/dashboard/properties/new",
-  },
-  CLIENT: {
-    "Browse Properties": "/buy",
-    "Saved Properties": "/dashboard/saved",
+    Messages: "/dashboard/messages",
   },
 };
 
