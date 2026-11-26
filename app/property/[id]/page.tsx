@@ -12,6 +12,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { VerifiedBadges } from "@/components/VerifiedBadges";
 import { Gallery } from "@/components/Gallery";
 import { EnquiryBox } from "@/components/EnquiryBox";
+import { getActionCost, getBalance } from "@/lib/points/wallet";
 
 const FURNISHING: Record<string, string> = {
   UNFURNISHED: "Unfurnished",
@@ -104,6 +105,8 @@ export default async function PropertyPage({
         : existingConversation
           ? "existing"
           : "ready";
+  const enquiryCost = await getActionCost("SEND_ENQUIRY");
+  const myBalance = viewer && enquiryCost > 0 ? await getBalance(viewer.id) : 0;
   const similar = (
     await searchProperties(
       {
@@ -257,6 +260,8 @@ export default async function PropertyPage({
               title={p.title}
               mode={enquiryMode}
               conversationId={existingConversation?.id}
+              cost={enquiryCost}
+              balance={myBalance}
             />
           </div>
         </aside>

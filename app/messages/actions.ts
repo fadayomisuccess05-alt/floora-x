@@ -5,8 +5,9 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { isEnabled } from "@/lib/flags";
 import { containsContactDetails } from "@/lib/messages/safety";
+import { InsufficientPointsError, getActionCost, spendInTx } from "@/lib/points/wallet";
 
-type Fail = { ok: false; error: string; needsLogin?: boolean };
+type Fail = { ok: false; error: string; needsLogin?: boolean; code?: string };
 const fail = (error: string, needsLogin = false): Fail => ({ ok: false, error, needsLogin });
 
 const clean = (text: string) => text.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
@@ -50,21 +51,47 @@ export async function startEnquiry(
   });
   if (today >= 20) return fail("You have sent many enquiries today. Please try again tomorrow.");
 
-  // Points: when the points system is switched on, the enquiry charge is applied here (Stage 4b).
+  // Zero while the points system is switched off
+  const cost = await getActionCost("SEND_ENQUIRY");
 
-  const created = await db.$transaction(async (tx) => {
-    const c = await tx.conversation.create({
-      data: { propertyId: p.id, clientId: user.id, recipientId: p.postedById, recipientUnread: true, clientUnread: false },
+  try {
+    const created = await db.$transaction(async (tx) => {
+      const c = await tx.conversation.create({
+        data: { propertyId: p.id, clientId: user.id, recipientId: p.postedById, recipientUnread: true, clientUnread: false },
+      });
+      await spendInTx(tx, {
+        userId: user.id,
+        action: "SEND_ENQUIRY",
+        cost,
+        refType: "Conversation",
+        refId: c.id,
+        idemKey: `enquiry:${c.id}`,
+      });
+      await tx.message.create({ data: { conversationId: c.id, senderId: user.id, body } });
+      await tx.auditLog.create({
+        data: {
+          actorId: user.id,
+          action: "ENQUIRY_SENT",
+          entityType: "Conversation",
+          entityId: c.id,
+          newValues: { propertyId: p.id, pointsCharged: cost },
+        },
+      });
+      return c;
     });
-    await tx.message.create({ data: { conversationId: c.id, senderId: user.id, body } });
-    await tx.auditLog.create({
-      data: { actorId: user.id, action: "ENQUIRY_SENT", entityType: "Conversation", entityId: c.id, newValues: { propertyId: p.id } },
-    });
-    return c;
-  });
 
-  revalidatePath("/dashboard/messages");
-  return { ok: true, conversationId: created.id, existing: false };
+    revalidatePath("/dashboard/messages");
+    return { ok: true, conversationId: created.id, existing: false };
+  } catch (e) {
+    if (e instanceof InsufficientPointsError) {
+      return {
+        ok: false,
+        code: "INSUFFICIENT_POINTS",
+        error: `This enquiry costs ${e.cost} points and you have ${e.balance}.`,
+      };
+    }
+    throw e;
+  }
 }
 
 export async function sendMessage(conversationId: string, message: string): Promise<{ ok: true } | Fail> {

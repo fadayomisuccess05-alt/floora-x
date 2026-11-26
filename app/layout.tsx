@@ -39,7 +39,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sora.variable} ${dmSans.variable}`}>
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={`${sora.variable} ${dmSans.variable}`}
+    >
       <body
         suppressHydrationWarning
         className="flex min-h-dvh flex-col antialiased"

@@ -10,12 +10,15 @@ type Props = {
   title: string;
   mode: "guest" | "own" | "admin" | "existing" | "ready";
   conversationId?: string;
+  cost?: number;
+  balance?: number;
 };
 
-export function EnquiryBox({ propertyId, title, mode, conversationId }: Props) {
+export function EnquiryBox({ propertyId, title, mode, conversationId, cost = 0, balance = 0 }: Props) {
   const router = useRouter();
   const [text, setText] = useState(`Hello, I'm interested in "${title}". Is it still available?`);
   const [error, setError] = useState("");
+  const [needsPoints, setNeedsPoints] = useState(false);
   const [busy, setBusy] = useState(false);
 
   if (mode === "guest") {
@@ -49,11 +52,13 @@ export function EnquiryBox({ propertyId, title, mode, conversationId }: Props) {
   async function send(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setNeedsPoints(false);
     setBusy(true);
     const res = await startEnquiry(propertyId, text);
     setBusy(false);
     if (!res.ok) {
       if (res.needsLogin) return router.push("/login");
+      if (res.code === "INSUFFICIENT_POINTS") setNeedsPoints(true);
       return setError(res.error);
     }
     router.push(`/dashboard/messages/${res.conversationId}`);
@@ -69,13 +74,24 @@ export function EnquiryBox({ propertyId, title, mode, conversationId }: Props) {
         maxLength={1000}
         className="w-full rounded-xl border border-navy/15 bg-white px-3 py-2.5 text-sm text-navy focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
       />
+      {cost > 0 && (
+        <p className="text-xs text-ink/70">
+          This enquiry costs <strong>{cost} points</strong>. Your balance: <strong>{balance} points</strong>. Points are
+          refunded if the owner doesn&rsquo;t reply within 48 hours.
+        </p>
+      )}
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+      {needsPoints && (
+        <Link href="/dashboard/points" className="inline-block rounded-full bg-navy px-4 py-2 text-xs font-bold text-white">
+          Buy points
+        </Link>
+      )}
       <button
         type="submit"
         disabled={busy}
         className="w-full rounded-full bg-amber px-5 py-3 text-sm font-bold text-navy disabled:opacity-60"
       >
-        {busy ? "Sending..." : "Send enquiry"}
+        {busy ? "Sending..." : cost > 0 ? `Send enquiry · ${cost} points` : "Send enquiry"}
       </button>
     </form>
   );

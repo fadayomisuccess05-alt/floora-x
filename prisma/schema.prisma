@@ -1,3 +1,116 @@
+enum ActionGroup {
+  CLIENT
+  PROFESSIONAL
+}
+
+enum WalletType {
+  CLIENT_POINTS
+  PROMO_POINTS
+}
+
+enum LedgerReason {
+  TOPUP
+  SPEND
+  REFUND
+  BONUS
+  ADJUSTMENT
+}
+
+enum PaymentCategory {
+  POINTS_TOPUP
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCESSFUL
+  FAILED
+}
+
+model ActionPrice {
+  action      String      @id
+  label       String
+  actionGroup ActionGroup
+  points      Int
+  active      Boolean     @default(true)
+  sortOrder   Int         @default(0)
+  updatedById String?     @db.Uuid
+  updatedAt   DateTime    @updatedAt
+}
+
+model CreditPackage {
+  id          String  @id @default(cuid())
+  points      Int
+  priceNaira  Int
+  bonusPoints Int     @default(0)
+  active      Boolean @default(true)
+  sortOrder   Int     @default(0)
+}
+
+model Wallet {
+  id        String     @id @default(cuid())
+  userId    String     @db.Uuid
+  type      WalletType @default(CLIENT_POINTS)
+  balance   Int        @default(0)
+  updatedAt DateTime   @updatedAt
+
+  user    User                @relation(fields: [userId], references: [id])
+  entries CreditLedgerEntry[]
+
+  @@unique([userId, type])
+}
+
+model CreditLedgerEntry {
+  id           String       @id @default(cuid())
+  walletId     String
+  amount       Int
+  balanceAfter Int
+  reason       LedgerReason
+  action       String?
+  refType      String?
+  refId        String?
+  paymentId    String?
+  idemKey      String       @unique
+  createdAt    DateTime     @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@index([reason, action, createdAt])
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  userId            String          @db.Uuid
+  category          PaymentCategory @default(POINTS_TOPUP)
+  amountNaira       Int
+  currency          String          @default("NGN")
+  provider          String          @default("paystack")
+  reference         String          @unique
+  providerReference String?
+  status            PaymentStatus   @default(INITIATED)
+  packageId         String?
+  points            Int             @default(0)
+  bonusPoints       Int             @default(0)
+  paidAt            DateTime?
+  createdAt         DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model MonetizationChangeLog {
+  id         String   @id @default(cuid())
+  adminId    String   @db.Uuid
+  entityType String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
@@ -61,6 +174,8 @@ model User {
   conversationsAsClient    Conversation[] @relation("ConversationClient")
   conversationsAsRecipient Conversation[] @relation("ConversationRecipient")
   messages                 Message[]
+  wallets           Wallet[]
+  payments          Payment[]
 
   @@index([accountType])
 }

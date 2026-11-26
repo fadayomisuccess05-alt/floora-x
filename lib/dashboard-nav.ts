@@ -106,6 +106,7 @@ const itemLinks: Partial<Record<Role, Record<string, string>>> = {
   ADMIN: {
     Verification: "/dashboard/admin/verification",
     "Listing Approvals": "/dashboard/admin/listings",
+    Monetization: "/dashboard/admin/monetization",
   },
   CLIENT: {
     "Browse Properties": "/buy",
@@ -133,7 +134,9 @@ export function getNav(role: Role): NavItem[] {
   return [
     { label: "Home", href: "/" },
     { label: "Overview", href: `/dashboard/${roleSlug[role]}` },
-    ...(role !== "ADMIN" ? [{ label: "Verification", href: "/dashboard/verification" }] : []),
+    ...(role !== "ADMIN"
+      ? [{ label: "Verification", href: "/dashboard/verification" }]
+      : []),
     ...items[role].map((label) => ({ label, href: itemLinks[role]?.[label] })),
   ];
 }
