@@ -107,26 +107,32 @@ const itemLinks: Partial<Record<Role, Record<string, string>>> = {
     Verification: "/dashboard/admin/verification",
     "Listing Approvals": "/dashboard/admin/listings",
     Monetization: "/dashboard/admin/monetization",
+    Notifications: "/dashboard/notifications",
   },
   CLIENT: {
     "Browse Properties": "/buy",
     "Saved Properties": "/dashboard/saved",
+    Following: "/dashboard/following",
     Messages: "/dashboard/messages",
+    Notifications: "/dashboard/notifications",
   },
   LANDLORD: {
     "My Properties": "/dashboard/properties",
     "Add Property": "/dashboard/properties/new",
     Messages: "/dashboard/messages",
+    Notifications: "/dashboard/notifications",
   },
   AGENT: {
     "My Listings": "/dashboard/properties",
     "Add Property": "/dashboard/properties/new",
     Messages: "/dashboard/messages",
+    Notifications: "/dashboard/notifications",
   },
   AGENCY: {
     Properties: "/dashboard/properties",
     "Add Property": "/dashboard/properties/new",
     Messages: "/dashboard/messages",
+    Notifications: "/dashboard/notifications",
   },
 };
 

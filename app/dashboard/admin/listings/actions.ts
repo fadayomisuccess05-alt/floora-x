@@ -4,12 +4,15 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { LISTING_DAYS } from "@/lib/properties/schema";
+import { notify, notifyFollowersOfNewListing } from "@/lib/notifications";
 
 type Result = { ok: true } | { ok: false; error: string };
 
 export async function approveListing(id: string): Promise<Result> {
   const admin = await requireUser(["ADMIN"]);
   const now = new Date();
+
+  const listing = await db.property.findUnique({ where: { id }, select: { postedById: true, title: true } });
 
   const done = await db.$transaction(async (tx) => {
     const res = await tx.property.updateMany({
@@ -39,6 +42,18 @@ export async function approveListing(id: string): Promise<Result> {
   });
 
   if (!done) return { ok: false, error: "This listing was already reviewed." };
+
+  if (listing) {
+    await notify(listing.postedById, {
+      type: "LISTING_APPROVED",
+      title: "Your listing is live",
+      body: listing.title,
+      href: `/property/${id}`,
+      refKey: `listing:${id}`,
+    });
+  }
+  await notifyFollowersOfNewListing(id);
+
   revalidatePath("/dashboard/admin/listings");
   return { ok: true };
 }
@@ -48,6 +63,8 @@ export async function rejectListing(id: string, reason: string): Promise<Result>
   const text = reason.trim();
   if (text.length < 3 || text.length > 300) return { ok: false, error: "Give a short reason (3 to 300 characters)." };
   const now = new Date();
+
+  const listing = await db.property.findUnique({ where: { id }, select: { postedById: true, title: true } });
 
   const done = await db.$transaction(async (tx) => {
     const res = await tx.property.updateMany({
@@ -69,6 +86,17 @@ export async function rejectListing(id: string, reason: string): Promise<Result>
   });
 
   if (!done) return { ok: false, error: "This listing was already reviewed." };
+
+  if (listing) {
+    await notify(listing.postedById, {
+      type: "LISTING_REJECTED",
+      title: "Your listing was not approved",
+      body: `${listing.title}: ${text}`,
+      href: `/dashboard/properties/${id}/edit`,
+      refKey: `listing:${id}`,
+    });
+  }
+
   revalidatePath("/dashboard/admin/listings");
   return { ok: true };
 }

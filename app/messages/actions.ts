@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { isEnabled } from "@/lib/flags";
 import { containsContactDetails } from "@/lib/messages/safety";
+import { notify } from "@/lib/notifications";
 import { InsufficientPointsError, getActionCost, spendInTx } from "@/lib/points/wallet";
 
 type Fail = { ok: false; error: string; needsLogin?: boolean; code?: string };
@@ -35,7 +36,7 @@ export async function startEnquiry(
 
   const p = await db.property.findFirst({
     where: { id: propertyId, listingStatus: "PUBLISHED" },
-    select: { id: true, postedById: true, expiresAt: true },
+    select: { id: true, title: true, postedById: true, expiresAt: true },
   });
   if (!p || (p.expiresAt && p.expiresAt < new Date())) return fail("This property is no longer available.");
   if (p.postedById === user.id) return fail("This is your own listing.");
@@ -78,6 +79,14 @@ export async function startEnquiry(
         },
       });
       return c;
+    });
+
+    await notify(p.postedById, {
+      type: "ENQUIRY",
+      title: "New enquiry",
+      body: `${user.fullName} asked about "${p.title}"`,
+      href: `/dashboard/messages/${created.id}`,
+      refKey: `conv:${created.id}`,
     });
 
     revalidatePath("/dashboard/messages");
@@ -126,6 +135,14 @@ export async function sendMessage(conversationId: string, message: string): Prom
       },
     }),
   ]);
+
+  await notify(iAmClient ? c.recipientId : c.clientId, {
+    type: "MESSAGE",
+    title: "New message",
+    body: `${user.fullName}: ${body.slice(0, 80)}`,
+    href: `/dashboard/messages/${c.id}`,
+    refKey: `conv:${c.id}`,
+  });
 
   revalidatePath("/dashboard/messages");
   return { ok: true };

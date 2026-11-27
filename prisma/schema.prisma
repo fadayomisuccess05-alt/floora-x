@@ -176,6 +176,8 @@ model User {
   messages                 Message[]
   wallets           Wallet[]
   payments          Payment[]
+  notifications     Notification[]
+  follows           Follow[]
 
   @@index([accountType])
 }
@@ -516,4 +518,34 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@index([senderId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    @db.Uuid
+  type      String
+  title     String
+  body      String?
+  href      String?
+  refKey    String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, refKey])
+  @@index([userId, readAt, createdAt])
+}
+
+model Follow {
+  id         String   @id @default(cuid())
+  followerId String   @db.Uuid
+  targetType String
+  targetId   String
+  createdAt  DateTime @default(now())
+
+  follower User @relation(fields: [followerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, targetType, targetId])
+  @@index([targetType, targetId])
 }
