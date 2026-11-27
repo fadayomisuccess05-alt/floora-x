@@ -178,6 +178,7 @@ model User {
   payments          Payment[]
   notifications     Notification[]
   follows           Follow[]
+  propertyAlerts    PropertyAlert[]
 
   @@index([accountType])
 }
@@ -548,4 +549,25 @@ model Follow {
 
   @@unique([followerId, targetType, targetId])
   @@index([targetType, targetId])
+}
+
+model PropertyAlert {
+  id            String         @id @default(cuid())
+  userId        String         @db.Uuid
+  label         String
+  purpose       String?
+  categoryGroup CategoryGroup?
+  categorySlug  String?
+  q             String?
+  minPrice      BigInt?
+  maxPrice      BigInt?
+  minBedrooms   Int?
+  amenitySlugs  String[]
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([active, purpose])
 }

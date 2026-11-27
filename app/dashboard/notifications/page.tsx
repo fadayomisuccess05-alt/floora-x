@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { markAllRead } from "./actions";
+import { markAllRead } from "./action";
 
 const when = (d: Date) =>
   d.toLocaleString("en-NG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Africa/Lagos" });

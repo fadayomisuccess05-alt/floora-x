@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { LISTING_DAYS } from "@/lib/properties/schema";
 import { notify, notifyFollowersOfNewListing } from "@/lib/notifications";
+import { notifyMatchingAlerts } from "@/lib/alerts";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -53,6 +54,7 @@ export async function approveListing(id: string): Promise<Result> {
     });
   }
   await notifyFollowersOfNewListing(id);
+  await notifyMatchingAlerts(id);
 
   revalidatePath("/dashboard/admin/listings");
   return { ok: true };

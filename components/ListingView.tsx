@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { PropertyCard } from "./PropertyCard";
-import { parseFilters, searchProperties, type Fixed, type SP } from "@/lib/properties/queries";
+import { getCurrentUser } from "@/lib/auth/session";
+import { SaveSearchButton } from "./SaveSearchButton";
+import {
+  parseFilters,
+  searchProperties,
+  type Fixed,
+  type SP,
+} from "@/lib/properties/queries";
 
 const input =
   "w-full rounded-xl border border-navy/15 bg-white px-3 py-2.5 text-sm text-navy placeholder:text-navy/40 focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30";
@@ -31,14 +38,38 @@ export async function ListingsView({
   searchParams: SP;
 }) {
   const f = parseFilters(searchParams);
+  const viewer = await getCurrentUser();
+  const tx = fixed.transactionTypes ?? [];
+  const alertPayload = {
+    purpose:
+      tx.length === 1 && tx[0] === "FOR_SALE"
+        ? ("BUY" as const)
+        : tx.includes("FOR_RENT")
+          ? ("RENT" as const)
+          : null,
+    categoryGroup: fixed.group ?? null,
+    categorySlug: f.category || null,
+    q: f.q || null,
+    minPrice: f.minPrice,
+    maxPrice: f.maxPrice,
+    minBedrooms: f.bedrooms,
+    amenitySlugs: f.amenities,
+  };
 
   const [categories, amenities, result] = await Promise.all([
     db.propertyCategory.findMany({
-      where: { active: true, ...(fixed.group ? { categoryGroup: fixed.group } : {}) },
+      where: {
+        active: true,
+        ...(fixed.group ? { categoryGroup: fixed.group } : {}),
+      },
       orderBy: { sortOrder: "asc" },
       select: { slug: true, name: true },
     }),
-    db.amenity.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" }, select: { slug: true, name: true } }),
+    db.amenity.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: "asc" },
+      select: { slug: true, name: true },
+    }),
     searchProperties(f, fixed),
   ]);
 
@@ -47,24 +78,67 @@ export async function ListingsView({
       <h1 className="text-3xl font-bold md:text-4xl">{title}</h1>
       <p className="mt-2 max-w-2xl text-ink/75">{intro}</p>
 
-      <form action={basePath} method="get" className="mt-8 space-y-4 rounded-2xl border border-navy/10 bg-white p-5">
+      <form
+        action={basePath}
+        method="get"
+        className="mt-8 space-y-4 rounded-2xl border border-navy/10 bg-white p-5"
+      >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <input name="q" defaultValue={f.q} placeholder="State, city or area" aria-label="Location" className={input} />
-          <select name="category" defaultValue={f.category} aria-label="Category" className={input}>
+          <input
+            name="q"
+            defaultValue={f.q}
+            placeholder="State, city or area"
+            aria-label="Location"
+            className={input}
+          />
+          <select
+            name="category"
+            defaultValue={f.category}
+            aria-label="Category"
+            className={input}
+          >
             <option value="">All categories</option>
             {categories.map((c) => (
-              <option key={c.slug} value={c.slug}>{c.name}</option>
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
             ))}
           </select>
-          <input name="minPrice" defaultValue={f.minPrice ?? ""} inputMode="numeric" placeholder="Min price (₦)" aria-label="Minimum price" className={input} />
-          <input name="maxPrice" defaultValue={f.maxPrice ?? ""} inputMode="numeric" placeholder="Max price (₦)" aria-label="Maximum price" className={input} />
-          <select name="bedrooms" defaultValue={f.bedrooms ? String(f.bedrooms) : ""} aria-label="Bedrooms" className={input}>
+          <input
+            name="minPrice"
+            defaultValue={f.minPrice ?? ""}
+            inputMode="numeric"
+            placeholder="Min price (₦)"
+            aria-label="Minimum price"
+            className={input}
+          />
+          <input
+            name="maxPrice"
+            defaultValue={f.maxPrice ?? ""}
+            inputMode="numeric"
+            placeholder="Max price (₦)"
+            aria-label="Maximum price"
+            className={input}
+          />
+          <select
+            name="bedrooms"
+            defaultValue={f.bedrooms ? String(f.bedrooms) : ""}
+            aria-label="Bedrooms"
+            className={input}
+          >
             <option value="">Any bedrooms</option>
             {[1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>{n}+ bedrooms</option>
+              <option key={n} value={n}>
+                {n}+ bedrooms
+              </option>
             ))}
           </select>
-          <select name="sort" defaultValue={f.sort} aria-label="Sort" className={input}>
+          <select
+            name="sort"
+            defaultValue={f.sort}
+            aria-label="Sort"
+            className={input}
+          >
             <option value="newest">Newest first</option>
             <option value="price_asc">Price: low to high</option>
             <option value="price_desc">Price: high to low</option>
@@ -72,11 +146,21 @@ export async function ListingsView({
         </div>
 
         <details open={f.amenities.length > 0}>
-          <summary className="cursor-pointer text-sm font-semibold text-navy">Amenities</summary>
+          <summary className="cursor-pointer text-sm font-semibold text-navy">
+            Amenities
+          </summary>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {amenities.map((a) => (
-              <label key={a.slug} className="flex items-center gap-2 text-sm text-ink">
-                <input type="checkbox" name="amenities" value={a.slug} defaultChecked={f.amenities.includes(a.slug)} />
+              <label
+                key={a.slug}
+                className="flex items-center gap-2 text-sm text-ink"
+              >
+                <input
+                  type="checkbox"
+                  name="amenities"
+                  value={a.slug}
+                  defaultChecked={f.amenities.includes(a.slug)}
+                />
                 {a.name}
               </label>
             ))}
@@ -84,16 +168,28 @@ export async function ListingsView({
         </details>
 
         <div className="flex flex-wrap gap-3">
-          <button className="rounded-full bg-amber px-6 py-2.5 text-sm font-bold text-navy">Search</button>
-          <Link href={basePath} className="rounded-full border border-navy/15 px-6 py-2.5 text-sm font-semibold text-navy">
+          <button className="rounded-full bg-amber px-6 py-2.5 text-sm font-bold text-navy">
+            Search
+          </button>
+          <Link
+            href={basePath}
+            className="rounded-full border border-navy/15 px-6 py-2.5 text-sm font-semibold text-navy"
+          >
             Clear
           </Link>
         </div>
       </form>
 
-      <p className="mt-6 text-sm text-ink/70">
-        {result.total === 0 ? "No properties found." : `${result.total} ${result.total === 1 ? "property" : "properties"} found`}
-      </p>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink/70">
+          {result.total === 0
+            ? "No properties found."
+            : `${result.total} ${result.total === 1 ? "property" : "properties"} found`}
+        </p>
+        {viewer?.accountType !== "ADMIN" && (
+          <SaveSearchButton payload={alertPayload} loggedIn={!!viewer} />
+        )}
+      </div>
 
       {result.total === 0 ? (
         <div className="mt-4 rounded-2xl border border-navy/10 bg-white p-8 text-center text-ink/75">
@@ -108,15 +204,26 @@ export async function ListingsView({
       )}
 
       {result.pages > 1 && (
-        <nav className="mt-8 flex items-center justify-center gap-3" aria-label="Pages">
+        <nav
+          className="mt-8 flex items-center justify-center gap-3"
+          aria-label="Pages"
+        >
           {f.page > 1 && (
-            <Link href={pageHref(basePath, searchParams, f.page - 1)} className="rounded-full border border-navy/15 px-5 py-2 text-sm font-semibold text-navy">
+            <Link
+              href={pageHref(basePath, searchParams, f.page - 1)}
+              className="rounded-full border border-navy/15 px-5 py-2 text-sm font-semibold text-navy"
+            >
               &larr; Previous
             </Link>
           )}
-          <span className="text-sm text-ink/70">Page {f.page} of {result.pages}</span>
+          <span className="text-sm text-ink/70">
+            Page {f.page} of {result.pages}
+          </span>
           {f.page < result.pages && (
-            <Link href={pageHref(basePath, searchParams, f.page + 1)} className="rounded-full border border-navy/15 px-5 py-2 text-sm font-semibold text-navy">
+            <Link
+              href={pageHref(basePath, searchParams, f.page + 1)}
+              className="rounded-full border border-navy/15 px-5 py-2 text-sm font-semibold text-navy"
+            >
               Next &rarr;
             </Link>
           )}
