@@ -17,6 +17,7 @@ const ACTION: Record<string, string> = {
   FOLLOW_AGENT: "Follow an agent",
   FOLLOW_AGENCY: "Follow an agency",
   UNLOCK_CONTACT: "Unlock a phone number",
+  REQUEST_INSPECTION: "Inspection request",
 };
 const PAID: Record<string, { text: string; ok: boolean }> = {
   credited: { text: "Payment received. Your points have been added.", ok: true },

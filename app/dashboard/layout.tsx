@@ -7,9 +7,17 @@ import { DashboardNav } from "./DashboardNav";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  const [unreadMessages, unreadNotes, creditsOn] = await Promise.all([
+  const [unreadMessages, unreadNotes, inspectionAsks, creditsOn] = await Promise.all([
     unreadCount(user.id),
     db.notification.count({ where: { userId: user.id, readAt: null } }),
+    // Inspection requests waiting for this person's answer
+    db.inspection.count({
+      where: {
+        status: { in: ["PENDING", "RESCHEDULED"] },
+        proposedById: { not: user.id },
+        OR: [{ clientId: user.id }, { repId: user.id }],
+      },
+    }),
     isEnabled("credits_enabled"),
   ]);
 
@@ -18,7 +26,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       ? { ...i, badge: unreadMessages }
       : i.label === "Notifications"
         ? { ...i, badge: unreadNotes }
-        : i
+        : i.label === "Inspections" || i.label === "Inspection Requests"
+          ? { ...i, badge: inspectionAsks }
+          : i
   );
   if (creditsOn && user.accountType !== "ADMIN") {
     const at = nav.findIndex((i) => i.label === "Messages");

@@ -179,6 +179,8 @@ model User {
   notifications     Notification[]
   follows           Follow[]
   propertyAlerts    PropertyAlert[]
+  inspectionsAsClient Inspection[] @relation("InspectionClient")
+  inspectionsAsRep    Inspection[] @relation("InspectionRep")
 
   @@index([accountType])
 }
@@ -443,6 +445,7 @@ model Property {
   media     PropertyMedia[]
   favorites Favorite[]
   conversations Conversation[]
+  inspections Inspection[]
 
   @@index([listingStatus, transactionType, state, city])
   @@index([postedById])
@@ -570,4 +573,36 @@ model PropertyAlert {
 
   @@index([userId])
   @@index([active, purpose])
+}
+
+enum InspectionStatus {
+  PENDING
+  RESCHEDULED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  COMPLETED
+  MISSED
+}
+
+model Inspection {
+  id           String           @id @default(cuid())
+  propertyId   String
+  clientId     String           @db.Uuid
+  repId        String           @db.Uuid
+  scheduledAt  DateTime
+  proposedById String           @db.Uuid
+  status       InspectionStatus @default(PENDING)
+  note         String?
+  responseNote String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  client   User     @relation("InspectionClient", fields: [clientId], references: [id])
+  rep      User     @relation("InspectionRep", fields: [repId], references: [id])
+
+  @@index([clientId, status])
+  @@index([repId, status])
+  @@index([propertyId, clientId])
 }

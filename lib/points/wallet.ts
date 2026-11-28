@@ -139,3 +139,10 @@ export async function refundInTx(tx: Tx, entryId: string): Promise<boolean> {
   });
   return true;
 }
+
+// Refund a charge by its idempotency key. Does nothing if no charge was made.
+export async function refundByKeyInTx(tx: Tx, idemKey: string): Promise<boolean> {
+  const entry = await tx.creditLedgerEntry.findUnique({ where: { idemKey } });
+  if (!entry) return false;
+  return refundInTx(tx, entry.id);
+}
